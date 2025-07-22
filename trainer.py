@@ -219,7 +219,7 @@ class ModelTrainer:
             loss.backward()
             
             # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            torch.nn.eda.clip_grad_norm_(model.parameters(), max_norm=1.0)
             
             optimizer.step()
             
@@ -245,7 +245,7 @@ class ModelTrainer:
         graph_list = []
         for i in range(batch_size):
             # Create a copy of the graph data using our simple structure
-            from utils.graph_builder import SimpleGraphData
+            from eda.graph_builder import SimpleGraphData
             batch_graph = SimpleGraphData(
                 x=graph_data.x.clone(),
                 edge_index=graph_data.edge_index.clone() if graph_data.edge_index is not None else None
@@ -255,7 +255,7 @@ class ModelTrainer:
         # Simple batching - create a simple graph data structure
         if graph_list:
             # For simplicity, use the first graph structure for all batches
-            from utils.graph_builder import SimpleGraphData
+            from eda.graph_builder import SimpleGraphData
             batched_graph = SimpleGraphData(
                 x=graph_data.x.to(self.device),
                 edge_index=graph_data.edge_index.to(self.device) if graph_data.edge_index is not None else None,
@@ -263,7 +263,7 @@ class ModelTrainer:
             )
             return batched_graph
         else:
-            from utils.graph_builder import SimpleGraphData
+            from eda.graph_builder import SimpleGraphData
             return SimpleGraphData().to(self.device)
     
     def validate_epoch(self, model, val_loader, criterion, graph_data):
@@ -394,7 +394,7 @@ class ModelTrainer:
         
         # Learning rate scheduler
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode='max', factor=0.5, patience=5, verbose=True
+            optimizer, mode='max', factor=0.5, patience=5
         )
         
         # Training loop

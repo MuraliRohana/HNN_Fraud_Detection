@@ -101,7 +101,7 @@ if page == "Data Overview":
     with col2:
         st.subheader("Transaction Amount Distribution")
         fig = px.histogram(data, x='Transaction_Amount', color='Fraud_Label',
-                          title="Transaction Amount by Fraud Status", bins=50)
+                          title="Transaction Amount by Fraud Status", nbins=50)
         st.plotly_chart(fig, use_container_width=True)
     
     # Feature correlations
