@@ -80,22 +80,51 @@ class HybridFraudDetector(nn.Module):
         Returns:
             Fraud probability scores [batch_size, 1]
         """
+        # Get batch size from sequence data
+        batch_size = sequence_data.size(0)
+        
         # GNN forward pass
-        gnn_embeddings = self.gnn_model(
+        gnn_output = self.gnn_model(
             x=graph_data.x,
             edge_index=graph_data.edge_index,
             batch=graph_data.batch
         )
         
+        # Ensure GNN embeddings match batch size
+        # If GNN output has more nodes than batch size, aggregate or select
+        if gnn_output.size(0) != batch_size:
+            if hasattr(graph_data, 'batch') and graph_data.batch is not None:
+                # Use batch information to aggregate node embeddings per graph
+                from torch_geometric.nn import global_mean_pool
+                gnn_embeddings = global_mean_pool(gnn_output, graph_data.batch)
+            else:
+                # If no batch info, take first batch_size embeddings or repeat as needed
+                if gnn_output.size(0) >= batch_size:
+                    gnn_embeddings = gnn_output[:batch_size]
+                else:
+                    # Repeat embeddings to match batch size
+                    repeat_factor = (batch_size + gnn_output.size(0) - 1) // gnn_output.size(0)
+                    gnn_embeddings = gnn_output.repeat(repeat_factor, 1)[:batch_size]
+        else:
+            gnn_embeddings = gnn_output
+        
         # LSTM forward pass
         lstm_embeddings = self.lstm_model(sequence_data)
+        
+        # Ensure both embeddings have the same batch dimension
+        assert gnn_embeddings.size(0) == lstm_embeddings.size(0), f"Batch size mismatch: GNN {gnn_embeddings.size(0)} vs LSTM {lstm_embeddings.size(0)}"
         
         # Fusion of GNN and LSTM outputs
         if self.fusion_method == 'concat':
             # Concatenate embeddings
             fused_embeddings = torch.cat([gnn_embeddings, lstm_embeddings], dim=1)
         elif self.fusion_method == 'add':
-            # Element-wise addition
+            # Element-wise addition (ensure same dimensions)
+            if gnn_embeddings.size(1) != lstm_embeddings.size(1):
+                # Project to same dimension if needed
+                min_dim = min(gnn_embeddings.size(1), lstm_embeddings.size(1))
+                gnn_embeddings = gnn_embeddings[:, :min_dim]
+                lstm_embeddings = lstm_embeddings[:, :min_dim]
             fused_embeddings = gnn_embeddings + lstm_embeddings
         elif self.fusion_method == 'attention':
             # Attention-based fusion
