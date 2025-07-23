@@ -54,11 +54,16 @@ page = st.sidebar.selectbox(
 )
 
 def load_data():
-    """Load and cache the dataset"""
+    """Load and reduce the dataset to a maximum of 10,000 rows"""
     if 'data' not in st.session_state:
         try:
-            # Try to load the provided dataset
+            # Load the full dataset
             data = pd.read_csv('dataset/synthetic_fraud_dataset.csv')
+
+            # Limit to 10,000 rows if larger
+            if len(data) > 10000:
+                data = data.sample(n=10000, random_state=42).reset_index(drop=True)
+
             st.session_state.data = data
             st.success(f"Dataset loaded successfully! Shape: {data.shape}")
         except FileNotFoundError:
