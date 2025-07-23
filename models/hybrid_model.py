@@ -90,29 +90,34 @@ class HybridFraudDetector(nn.Module):
             batch=graph_data.batch
         )
         
-        # Ensure GNN embeddings match batch size
-        # If GNN output has more nodes than batch size, aggregate or select
-        if gnn_output.size(0) != batch_size:
-            if hasattr(graph_data, 'batch') and graph_data.batch is not None:
-                # Use batch information to aggregate node embeddings per graph
-                from torch_geometric.nn import global_mean_pool
-                gnn_embeddings = global_mean_pool(gnn_output, graph_data.batch)
-            else:
-                # If no batch info, take first batch_size embeddings or repeat as needed
-                if gnn_output.size(0) >= batch_size:
-                    gnn_embeddings = gnn_output[:batch_size]
-                else:
-                    # Repeat embeddings to match batch size
-                    repeat_factor = (batch_size + gnn_output.size(0) - 1) // gnn_output.size(0)
-                    gnn_embeddings = gnn_output.repeat(repeat_factor, 1)[:batch_size]
-        else:
-            gnn_embeddings = gnn_output
-        
         # LSTM forward pass
         lstm_embeddings = self.lstm_model(sequence_data)
         
-        # Ensure both embeddings have the same batch dimension
-        assert gnn_embeddings.size(0) == lstm_embeddings.size(0), f"Batch size mismatch: GNN {gnn_embeddings.size(0)} vs LSTM {lstm_embeddings.size(0)}"
+        # Handle batch size mismatch between GNN and LSTM (memory-efficient)
+        gnn_batch_size = gnn_output.size(0)
+        lstm_batch_size = lstm_embeddings.size(0)
+        
+        if gnn_batch_size != lstm_batch_size:
+            # If GNN returns single graph embedding, repeat it to match LSTM batch size
+            if gnn_batch_size == 1:
+                # Use repeat instead of expand for memory efficiency
+                gnn_embeddings = gnn_output.repeat(lstm_batch_size, 1)
+            # If LSTM batch size is 1, repeat it to match GNN batch size  
+            elif lstm_batch_size == 1:
+                lstm_embeddings = lstm_embeddings.repeat(gnn_batch_size, 1)
+                gnn_embeddings = gnn_output
+            # If GNN has more embeddings than LSTM batch size, take mean
+            elif gnn_batch_size > lstm_batch_size:
+                # Take mean of all GNN embeddings and repeat to match LSTM batch size
+                gnn_mean = gnn_output.mean(dim=0, keepdim=True)
+                gnn_embeddings = gnn_mean.repeat(lstm_batch_size, 1)
+            # If LSTM has more embeddings than GNN, repeat GNN embeddings
+            elif lstm_batch_size > gnn_batch_size:
+                # Repeat GNN embeddings to match LSTM batch size
+                repeat_factor = (lstm_batch_size + gnn_batch_size - 1) // gnn_batch_size
+                gnn_embeddings = gnn_output.repeat(repeat_factor, 1)[:lstm_batch_size]
+        else:
+            gnn_embeddings = gnn_output
         
         # Fusion of GNN and LSTM outputs
         if self.fusion_method == 'concat':
@@ -363,6 +368,21 @@ class MultitaskHybridModel(nn.Module):
             batch=graph_data.batch
         )
         lstm_embeddings = self.lstm_model(sequence_data)
+        
+        # Handle batch size mismatch between GNN and LSTM (memory-efficient)
+        lstm_batch_size = lstm_embeddings.size(0)
+        gnn_batch_size = gnn_embeddings.size(0)
+        
+        if gnn_batch_size != lstm_batch_size:
+            # If GNN returns single graph embedding, repeat it to match LSTM batch size
+            if gnn_batch_size == 1:
+                gnn_embeddings = gnn_embeddings.repeat(lstm_batch_size, 1)
+            # If LSTM batch size is 1, repeat it to match GNN batch size
+            elif lstm_batch_size == 1:
+                lstm_embeddings = lstm_embeddings.repeat(gnn_batch_size, 1)
+            else:
+                # If both have different batch sizes > 1, this is an error
+                raise ValueError(f"Incompatible batch sizes: GNN {gnn_batch_size} vs LSTM {lstm_batch_size}")
         
         # Shared representation
         combined_embeddings = torch.cat([gnn_embeddings, lstm_embeddings], dim=1)
