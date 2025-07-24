@@ -47,11 +47,28 @@ if 'training_history' not in st.session_state:
     st.session_state.training_history = None
 
 # Sidebar
+import streamlit as st
+
+# Initialize session state for page tracking
+if "page" not in st.session_state:
+    st.session_state.page = "Data Overview"
+
+# Sidebar navigation with buttons
 st.sidebar.title("Navigation")
-page = st.sidebar.selectbox(
-    "Choose a page:",
-    ["Data Overview", "Model Training", "Model Evaluation", "Real-time Prediction", "Performance Dashboard"]
-)
+if st.sidebar.button("Data Overview"):
+    st.session_state.page = "Data Overview"
+if st.sidebar.button("Model Training"):
+    st.session_state.page = "Model Training"
+if st.sidebar.button("Model Evaluation"):
+    st.session_state.page = "Model Evaluation"
+if st.sidebar.button("Real-time Prediction"):
+    st.session_state.page = "Real-time Prediction"
+if st.sidebar.button("Performance Dashboard"):
+    st.session_state.page = "Performance Dashboard"
+
+# Set the active page
+page = st.session_state.page
+
 
 def load_data():
     """Load and reduce the dataset to a maximum of 10,000 rows"""
@@ -62,7 +79,7 @@ def load_data():
 
             # Limit to 10,000 rows if larger
             if len(data) > 10000:
-                data = data.sample(n=10000, random_state=42).reset_index(drop=True)
+                data = data.sample(n=1000, random_state=42).reset_index(drop=True)
 
             st.session_state.data = data
             st.success(f"Dataset loaded successfully! Shape: {data.shape}")
@@ -129,7 +146,7 @@ elif page == "Model Training":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        epochs = st.slider("Number of Epochs", 5, 100, 50)
+        epochs = st.slider("Number of Epochs", 5, 100, 10)
         batch_size = st.selectbox("Batch Size", [32, 64, 128, 256], index=1)
     
     with col2:
@@ -141,9 +158,14 @@ elif page == "Model Training":
         lstm_layers = st.slider("LSTM Layers", 1, 3, 2)
     
     # Advanced settings
-    with st.expander("Advanced Settings"):
+    st.subheader("Advanced Settings")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
         dropout = st.slider("Dropout Rate", 0.0, 0.5, 0.2)
         use_smote = st.checkbox("Use SMOTE for Class Balancing", value=True)
+    
+    with col_b:
         test_size = st.slider("Test Split Size", 0.1, 0.3, 0.2)
         random_state = st.number_input("Random State", value=42)
     
@@ -196,23 +218,29 @@ elif page == "Model Training":
                 
                 with col1:
                     st.subheader("Training Loss")
-                    fig = px.line(x=range(len(history['train_loss'])), y=history['train_loss'],
-                                 title="Training Loss Over Time")
-                    fig.update_layout(xaxis_title="Epoch", yaxis_title="Loss")
-                    st.plotly_chart(fig, use_container_width=True)
+                    if 'train_loss' in history and len(history['train_loss']) > 0:
+                        fig = px.line(x=list(range(len(history['train_loss']))), y=history['train_loss'],
+                                     title="Training Loss Over Time")
+                        fig.update_layout(xaxis_title="Epoch", yaxis_title="Loss")
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("No training loss data available")
                 
                 with col2:
                     st.subheader("Validation Metrics")
-                    metrics_df = pd.DataFrame({
-                        'Epoch': range(len(history['val_f1'])),
-                        'F1 Score': history['val_f1'],
-                        'Precision': history['val_precision'],
-                        'Recall': history['val_recall']
-                    })
-                    
-                    fig = px.line(metrics_df, x='Epoch', y=['F1 Score', 'Precision', 'Recall'],
-                                 title="Validation Metrics Over Time")
-                    st.plotly_chart(fig, use_container_width=True)
+                    if all(key in history for key in ['val_f1', 'val_precision', 'val_recall']) and len(history['val_f1']) > 0:
+                        metrics_df = pd.DataFrame({
+                            'Epoch': list(range(len(history['val_f1']))),
+                            'F1 Score': history['val_f1'],
+                            'Precision': history['val_precision'],
+                            'Recall': history['val_recall']
+                        })
+                        
+                        fig = px.line(metrics_df, x='Epoch', y=['F1 Score', 'Precision', 'Recall'],
+                                     title="Validation Metrics Over Time")
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("No validation metrics data available")
                 
             except Exception as e:
                 st.error(f"Error during training: {str(e)}")
@@ -471,53 +499,59 @@ elif page == "Performance Dashboard":
         
         with col1:
             # Loss curve
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=list(range(len(history['train_loss']))),
-                y=history['train_loss'],
-                mode='lines',
-                name='Training Loss',
-                line=dict(color='blue')
-            ))
-            fig.update_layout(
-                title="Training Loss Over Time",
-                xaxis_title="Epoch",
-                yaxis_title="Loss",
-                showlegend=True
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            if 'train_loss' in history and len(history['train_loss']) > 0:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=list(range(len(history['train_loss']))),
+                    y=history['train_loss'],
+                    mode='lines',
+                    name='Training Loss',
+                    line=dict(color='blue')
+                ))
+                fig.update_layout(
+                    title="Training Loss Over Time",
+                    xaxis_title="Epoch",
+                    yaxis_title="Loss",
+                    showlegend=True
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("No training loss data available")
         
         with col2:
             # Metrics curves
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=list(range(len(history['val_f1']))),
-                y=history['val_f1'],
-                mode='lines',
-                name='F1 Score',
-                line=dict(color='green')
-            ))
-            fig.add_trace(go.Scatter(
-                x=list(range(len(history['val_precision']))),
-                y=history['val_precision'],
-                mode='lines',
-                name='Precision',
-                line=dict(color='orange')
-            ))
-            fig.add_trace(go.Scatter(
-                x=list(range(len(history['val_recall']))),
-                y=history['val_recall'],
-                mode='lines',
-                name='Recall',
-                line=dict(color='red')
-            ))
-            fig.update_layout(
-                title="Validation Metrics Over Time",
-                xaxis_title="Epoch",
-                yaxis_title="Score",
-                showlegend=True
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            if all(key in history for key in ['val_f1', 'val_precision', 'val_recall']) and len(history['val_f1']) > 0:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=list(range(len(history['val_f1']))),
+                    y=history['val_f1'],
+                    mode='lines',
+                    name='F1 Score',
+                    line=dict(color='green')
+                ))
+                fig.add_trace(go.Scatter(
+                    x=list(range(len(history['val_precision']))),
+                    y=history['val_precision'],
+                    mode='lines',
+                    name='Precision',
+                    line=dict(color='orange')
+                ))
+                fig.add_trace(go.Scatter(
+                    x=list(range(len(history['val_recall']))),
+                    y=history['val_recall'],
+                    mode='lines',
+                    name='Recall',
+                    line=dict(color='red')
+                ))
+                fig.update_layout(
+                    title="Validation Metrics Over Time",
+                    xaxis_title="Epoch",
+                    yaxis_title="Score",
+                    showlegend=True
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("No validation metrics data available")
         
         # Model architecture info
         st.subheader("Model Architecture")

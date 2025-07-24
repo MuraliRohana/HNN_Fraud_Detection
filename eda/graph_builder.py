@@ -366,7 +366,7 @@ class GraphBuilder:
             'num_edges': num_edges,
             'average_degree': 2 * num_edges / num_nodes if num_nodes > 0 else 0,
             'num_connected_components': nx.number_connected_components(G),
-            'largest_component_size': len(max(nx.connected_components(G), key=len)) if num_nodes > 0 else 0,
+            'largest_component_size': len(max(nx.connected_components(G), key=lambda x: len(x))) if num_nodes > 0 else 0,
             'clustering_coefficient': nx.average_clustering(G) if num_nodes > 0 else 0,
             'density': nx.density(G)
         }
