@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, f1_score
 import plotly.express as px
@@ -68,6 +69,84 @@ if st.sidebar.button("Performance Dashboard"):
 
 # Set the active page
 page = st.session_state.page
+
+def calculate_rule_based_risk_score(transaction_data, user_avg_amount=200.0):
+    """
+    Calculate rule-based risk score using heuristics
+    
+    Args:
+        transaction_data: Dictionary containing transaction details
+        user_avg_amount: User's average transaction amount over 7 days
+    
+    Returns:
+        risk_score: Float between 0.0 and 1.0
+        risk_factors: List of triggered risk factors
+    """
+    risk_score = 0.0
+    risk_factors = []
+    
+    # 🧠 User & Transaction Behavior Rules
+    if transaction_data['Transaction_Amount'] > user_avg_amount * 2:
+        risk_score += 0.2
+        risk_factors.append("High transaction amount (>2x average)")
+    
+    if transaction_data['Failed_Transaction_Count_7d'] > 3:
+        risk_score += 0.2
+        risk_factors.append("High failed transactions (>3 in 7 days)")
+    
+    if transaction_data['Daily_Transaction_Count'] > 10:
+        risk_score += 0.15
+        risk_factors.append("High daily transaction count (>10)")
+    
+    if transaction_data['Transaction_Distance'] > 500:
+        risk_score += 0.2
+        risk_factors.append("High transaction distance (>500km)")
+    
+    # Convert card age from months to check if < 6 months
+    card_age_months = transaction_data['Card_Age'] / 30  # Assuming card_age is in days
+    if card_age_months < 6:
+        risk_score += 0.15
+        risk_factors.append("New card (<6 months old)")
+    
+    if transaction_data['Account_Balance'] < transaction_data['Transaction_Amount']:
+        risk_score += 0.2
+        risk_factors.append("Insufficient account balance")
+    
+    # 📍 Location & Device Rules
+    unusual_locations = ['Tokyo', 'Sydney', 'Mumbai']  # Example unusual locations
+    if transaction_data['Location'] in unusual_locations:
+        risk_score += 0.2
+        risk_factors.append("Unusual location")
+    
+    if transaction_data['Device_Type'] in ['Tablet']:  # Treating tablet as new/unrecognized
+        risk_score += 0.2
+        risk_factors.append("New/Unrecognized device type")
+    
+    if transaction_data['Authentication_Method'] in ['OTP', 'Password']:
+        risk_score += 0.15
+        risk_factors.append("Weak authentication method")
+    
+    if transaction_data['Transaction_Type'] == 'Online':
+        risk_score += 0.1
+        risk_factors.append("Online transaction")
+    
+    # ⚠️ High-Risk Flags
+    if transaction_data['IP_Address_Flag']:
+        risk_score += 0.3
+        risk_factors.append("Suspicious IP address")
+    
+    if transaction_data['Previous_Fraudulent_Activity']:
+        risk_score += 0.4
+        risk_factors.append("Previous fraudulent activity")
+    
+    if transaction_data['Is_Weekend']:
+        risk_score += 0.1
+        risk_factors.append("Weekend transaction")
+    
+    # Cap the risk score at 1.0
+    pre_risk_score = min(risk_score, 1.0)
+    
+    return pre_risk_score, risk_factors
 
 
 def load_data():
@@ -368,7 +447,7 @@ elif page == "Real-time Prediction":
             account_balance = st.number_input("Account Balance", min_value=0.0, value=5000.0)
             daily_txn_count = st.slider("Daily Transaction Count", 1, 20, 5)
             card_age = st.slider("Card Age (months)", 1, 300, 60)
-            risk_score = st.slider("Risk Score", 0.0, 1.0, 0.5)
+            
         
         # Additional features
         with st.expander("Additional Features"):
@@ -397,7 +476,6 @@ elif page == "Real-time Prediction":
                     'Account_Balance': account_balance,
                     'Daily_Transaction_Count': daily_txn_count,
                     'Card_Age': card_age,
-                    'Risk_Score': risk_score,
                     'IP_Address_Flag': int(ip_flag),
                     'Previous_Fraudulent_Activity': int(prev_fraud),
                     'Is_Weekend': int(is_weekend),
@@ -407,122 +485,243 @@ elif page == "Real-time Prediction":
                     'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 }
                 
+                # Calculate rule-based risk score
+                calculated_risk_score, risk_factors = calculate_rule_based_risk_score(
+                    transaction_data, avg_amount_7d
+                )
+                transaction_data['Risk_Score'] = calculated_risk_score
+
+
                 # Make prediction
                 model = st.session_state.model
                 preprocessor = st.session_state.preprocessor
-                
+
                 # Convert to DataFrame for preprocessing
                 transaction_df = pd.DataFrame([transaction_data])
-                
+
                 # Preprocess
                 X_processed, _ = preprocessor.preprocess(transaction_df, is_prediction=True)
-                
-                # Simple prediction (create minimal graph for single transaction)
+
+                # Simple prediction (without graph for single transaction)
                 model.eval()
                 with torch.no_grad():
-                    # Convert to tensor and ensure correct shape
+                    # Use only LSTM component for single transaction prediction
                     X_tensor = torch.FloatTensor(X_processed)
+                    # Get sequence features for LSTM
+                    seq_features = X_tensor.unsqueeze(0)  # Add batch dimension
+
+                    # Forward pass through LSTM only
+                    lstm_out = model.lstm_model(seq_features)  # Shape: [1, hidden_dim]
                     
-                    # Debug: Check original shape
-                    # st.write(f"Original X_processed shape: {X_processed.shape}")
-                    # st.write(f"X_tensor shape: {X_tensor.shape}")
+                    # Apply a final linear layer to get single output
+                    # Create a temporary linear layer for classification
+                    if not hasattr(model, 'temp_classifier'):
+                        model.temp_classifier = nn.Linear(lstm_out.size(1), 1)
+                        if torch.cuda.is_available():
+                            model.temp_classifier = model.temp_classifier.cuda()
                     
-                    # Ensure X_tensor is 2D [num_nodes, features]
-                    if X_tensor.dim() == 1:
-                        X_tensor = X_tensor.unsqueeze(0)  # [features] -> [1, features]
-                    elif X_tensor.dim() > 2:
-                        X_tensor = X_tensor.squeeze()  # Remove extra dimensions
-                        if X_tensor.dim() == 1:
-                            X_tensor = X_tensor.unsqueeze(0)
-                    
-                    # Create a simple graph structure for single transaction
-                    edge_index = torch.tensor([[0], [0]], dtype=torch.long)
-                    
-                    # Create graph data object
-                    from torch_geometric.data import Data
-                    graph_data = Data(x=X_tensor, edge_index=edge_index)
-                    
-                    # Prepare sequence data for LSTM (3D: [batch_size, seq_len, features])
-                    # X_tensor should be [1, features] at this point
-                    seq_features = X_tensor.unsqueeze(1)  # [1, features] -> [1, 1, features] = [batch_size, seq_len, features]
-                    
-                    # Debug: Check final shapes
-                    # st.write(f"Graph data x shape: {graph_data.x.shape}")
-                    # st.write(f"Sequence features shape: {seq_features.shape}")
-                    
-                    # Forward pass through the full hybrid model
-                    output = model(graph_data, seq_features)
-                    prediction_prob = torch.sigmoid(output).item()
+                    # Get final prediction
+                    logits = model.temp_classifier(lstm_out)  # Shape: [1, 1]
+                    prediction_prob = torch.sigmoid(logits).item()  # Now this works
                     prediction = 1 if prediction_prob > 0.5 else 0
+
+                # Display results prominently
+                st.subheader("🎯 Prediction Results")
                 
-                # Display results
-                col1, col2 = st.columns(2)
+                # Main results in prominent cards
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    st.markdown("### 🤖 ML Model Prediction")
+                    if prediction == 1:
+                        st.error("🚨 **FRAUD DETECTED**")
+                        st.error(f"**Probability: {prediction_prob:.4f}**")
+                    else:
+                        st.success("✅ **LEGITIMATE**")
+                        st.success(f"**Probability: {prediction_prob:.4f}**")
+
+                with col2:
+                    st.markdown("### 📊 Rule-Based Risk Score")
+                    risk_level = "🔴 HIGH" if calculated_risk_score > 0.7 else "🟡 MEDIUM" if calculated_risk_score > 0.4 else "🟢 LOW"
+                    
+                    if calculated_risk_score > 0.7:
+                        st.error(f"**Risk Score: {calculated_risk_score:.3f}**")
+                        st.error(f"**Risk Level: {risk_level}**")
+                    elif calculated_risk_score > 0.4:
+                        st.warning(f"**Risk Score: {calculated_risk_score:.3f}**")
+                        st.warning(f"**Risk Level: {risk_level}**")
+                    else:
+                        st.success(f"**Risk Score: {calculated_risk_score:.3f}**")
+                        st.success(f"**Risk Level: {risk_level}**")
+
+                with col3:
+                    st.markdown("### 🎯 Combined Assessment")
+                    combined_score = (prediction_prob + calculated_risk_score) / 2
+                    if combined_score > 0.6:
+                        final_decision = "🚨 **HIGH RISK**"
+                        st.error(final_decision)
+                        st.error(f"**Combined Score: {combined_score:.3f}**")
+                    elif combined_score > 0.3:
+                        final_decision = "⚠️ **MEDIUM RISK**"
+                        st.warning(final_decision)
+                        st.warning(f"**Combined Score: {combined_score:.3f}**")
+                    else:
+                        final_decision = "✅ **LOW RISK**"
+                        st.success(final_decision)
+                        st.success(f"**Combined Score: {combined_score:.3f}**")
+
+                # Detailed gauge visualizations
+                st.subheader("📈 Score Visualizations")
+                col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    if prediction == 1:
-                        st.error("🚨 FRAUD DETECTED")
-                        st.error(f"Fraud Probability: {prediction_prob:.4f}")
-                    else:
-                        st.success("✅ LEGITIMATE TRANSACTION")
-                        st.success(f"Fraud Probability: {prediction_prob:.4f}")
-                
-                with col2:
-                    # Probability gauge
-                    fig = go.Figure(go.Indicator(
-                        mode = "gauge+number+delta",
+                    # ML Probability gauge
+                    fig_ml = go.Figure(go.Indicator(
+                        mode = "gauge+number",
                         value = prediction_prob,
                         domain = {'x': [0, 1], 'y': [0, 1]},
-                        title = {'text': "Fraud Probability"},
-                        delta = {'reference': 0.5},
+                        title = {'text': "ML Fraud Probability"},
                         gauge = {
                             'axis': {'range': [None, 1]},
                             'bar': {'color': "red" if prediction_prob > 0.5 else "green"},
                             'steps': [
-                                {'range': [0, 0.5], 'color': "lightgray"},
-                                {'range': [0.5, 1], 'color': "gray"}],
+                                {'range': [0, 0.5], 'color': "lightgreen"},
+                                {'range': [0.5, 1], 'color': "lightcoral"}],
                             'threshold': {
                                 'line': {'color': "red", 'width': 4},
                                 'thickness': 0.75,
                                 'value': 0.5}}))
-                    st.plotly_chart(fig, use_container_width=True)
+                    fig_ml.update_layout(height=300)
+                    st.plotly_chart(fig_ml, use_container_width=True)
+
+                with col2:
+                    # Rule-based risk gauge
+                    fig_rule = go.Figure(go.Indicator(
+                        mode = "gauge+number",
+                        value = calculated_risk_score,
+                        domain = {'x': [0, 1], 'y': [0, 1]},
+                        title = {'text': "Rule-Based Risk Score"},
+                        gauge = {
+                            'axis': {'range': [None, 1]},
+                            'bar': {'color': "red" if calculated_risk_score > 0.7 else "orange" if calculated_risk_score > 0.4 else "green"},
+                            'steps': [
+                                {'range': [0, 0.4], 'color': "lightgreen"},
+                                {'range': [0.4, 0.7], 'color': "yellow"},
+                                {'range': [0.7, 1], 'color': "lightcoral"}],
+                            'threshold': {
+                                'line': {'color': "red", 'width': 4},
+                                'thickness': 0.75,
+                                'value': 0.7}}))
+                    fig_rule.update_layout(height=300)
+                    st.plotly_chart(fig_rule, use_container_width=True)
+
+                with col3:
+                    # Combined score gauge
+                    fig_combined = go.Figure(go.Indicator(
+                        mode = "gauge+number",
+                        value = combined_score,
+                        domain = {'x': [0, 1], 'y': [0, 1]},
+                        title = {'text': "Combined Risk Score"},
+                        gauge = {
+                            'axis': {'range': [None, 1]},
+                            'bar': {'color': "red" if combined_score > 0.6 else "orange" if combined_score > 0.3 else "green"},
+                            'steps': [
+                                {'range': [0, 0.3], 'color': "lightgreen"},
+                                {'range': [0.3, 0.6], 'color': "yellow"},
+                                {'range': [0.6, 1], 'color': "lightcoral"}],
+                            'threshold': {
+                                'line': {'color': "red", 'width': 4},
+                                'thickness': 0.75,
+                                'value': 0.6}}))
+                    fig_combined.update_layout(height=300)
+                    st.plotly_chart(fig_combined, use_container_width=True)
                 
-                # Risk factors analysis
-                st.subheader("Risk Factor Analysis")
-                risk_factors = []
+                # Score breakdown summary
+                st.subheader("📋 Score Breakdown")
+                breakdown_col1, breakdown_col2 = st.columns(2)
                 
-                if amount > 1000:
-                    risk_factors.append("High transaction amount")
-                if risk_score > 0.7:
-                    risk_factors.append("High risk score")
-                if ip_flag:
-                    risk_factors.append("Suspicious IP address")
-                if prev_fraud:
-                    risk_factors.append("Previous fraudulent activity")
-                if failed_count_7d > 5:
-                    risk_factors.append("High number of recent failed transactions")
+                with breakdown_col1:
+                    st.info("**Risk Composition Details:**")
+                    st.write(f"🤖 **ML Model Score:** {prediction_prob:.3f}")
+                    st.write(f"📊 **Rule-Based Score:** {calculated_risk_score:.3f}")
+                    st.write(f"🎯 **Combined Score:** {combined_score:.3f}")
+                    st.write(f"🏁 **Final Decision:** {final_decision}")
+
+                with breakdown_col2:
+                    st.info("**Decision Thresholds:**")
+                    st.write("🟢 **Low Risk:** < 0.3")
+                    st.write("🟡 **Medium Risk:** 0.3 - 0.6")
+                    st.write("🔴 **High Risk:** > 0.6")
+                    st.write(f"📊 **Rule Factors Triggered:** {len(risk_factors)}")
+
+                # Detailed risk factors analysis
+                st.subheader("Triggered Risk Factors")
                 
                 if risk_factors:
-                    for factor in risk_factors:
-                        st.warning(f"⚠️ {factor}")
+                    # Create tabs for different risk categories
+                    risk_tabs = st.tabs(["🧠 Behavior", "📍 Location & Device", "⚠️ High-Risk Flags"])
+                    
+                    behavior_factors = [f for f in risk_factors if any(keyword in f.lower() for keyword in ['amount', 'failed', 'daily', 'distance', 'card', 'balance'])]
+                    location_factors = [f for f in risk_factors if any(keyword in f.lower() for keyword in ['location', 'device', 'authentication', 'online'])]
+                    high_risk_factors = [f for f in risk_factors if any(keyword in f.lower() for keyword in ['ip', 'previous', 'weekend'])]
+                    
+                    with risk_tabs[0]:
+                        if behavior_factors:
+                            for factor in behavior_factors:
+                                st.warning(f"⚠️ {factor}")
+                        else:
+                            st.success("✅ No behavioral risk factors detected")
+                    
+                    with risk_tabs[1]:
+                        if location_factors:
+                            for factor in location_factors:
+                                st.warning(f"⚠️ {factor}")
+                        else:
+                            st.success("✅ No location/device risk factors detected")
+                    
+                    with risk_tabs[2]:
+                        if high_risk_factors:
+                            for factor in high_risk_factors:
+                                st.error(f"🚨 {factor}")
+                        else:
+                            st.success("✅ No high-risk flags detected")
+                    
+                    # Risk mitigation suggestions
+                    st.subheader("Risk Mitigation Recommendations")
+                    
+                    if calculated_risk_score > 0.7:
+                        st.error("**HIGH RISK TRANSACTION - Immediate Action Required:**")
+                        st.write("• Block transaction and contact customer")
+                        st.write("• Require additional authentication")
+                        st.write("• Manual review by fraud analyst")
+                    elif calculated_risk_score > 0.4:
+                        st.warning("**MEDIUM RISK TRANSACTION - Enhanced Monitoring:**")
+                        st.write("• Step-up authentication required")
+                        st.write("• Monitor for related transactions")
+                        st.write("• SMS/Email verification")
+                    else:
+                        st.success("**LOW RISK TRANSACTION - Standard Processing:**")
+                        st.write("• Process transaction normally")
+                        st.write("• Continue standard monitoring")
                 else:
-                    st.info("No significant risk factors detected")
-                
+                    st.success("✅ No risk factors detected - Transaction appears legitimate")
+
             except Exception as e:
                 st.error(f"Error making prediction: {str(e)}")
 
 # Performance Dashboard Page
 elif page == "Performance Dashboard":
     st.header("📊 Performance Dashboard")
-    
+
     if not st.session_state.model_trained:
         st.warning("Please train the model first in the 'Model Training' page.")
     else:
         data = load_data()
         history = st.session_state.training_history
-        
+
         # Training metrics overview
         st.subheader("Training Overview")
-        
+
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             final_loss = history['train_loss'][-1]
@@ -536,110 +735,104 @@ elif page == "Performance Dashboard":
         with col4:
             best_recall = max(history['val_recall'])
             st.metric("Best Recall", f"{best_recall:.4f}")
-        
+
         # Training curves
         st.subheader("Training Progress")
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             # Loss curve
-            if 'train_loss' in history and len(history['train_loss']) > 0:
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(
-                    x=list(range(len(history['train_loss']))),
-                    y=history['train_loss'],
-                    mode='lines',
-                    name='Training Loss',
-                    line=dict(color='blue')
-                ))
-                fig.update_layout(
-                    title="Training Loss Over Time",
-                    xaxis_title="Epoch",
-                    yaxis_title="Loss",
-                    showlegend=True
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No training loss data available")
-        
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=list(range(len(history['train_loss']))),
+                y=history['train_loss'],
+                mode='lines',
+                name='Training Loss',
+                line=dict(color='blue')
+            ))
+            fig.update_layout(
+                title="Training Loss Over Time",
+                xaxis_title="Epoch",
+                yaxis_title="Loss",
+                showlegend=True
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
         with col2:
             # Metrics curves
-            if all(key in history for key in ['val_f1', 'val_precision', 'val_recall']) and len(history['val_f1']) > 0:
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(
-                    x=list(range(len(history['val_f1']))),
-                    y=history['val_f1'],
-                    mode='lines',
-                    name='F1 Score',
-                    line=dict(color='green')
-                ))
-                fig.add_trace(go.Scatter(
-                    x=list(range(len(history['val_precision']))),
-                    y=history['val_precision'],
-                    mode='lines',
-                    name='Precision',
-                    line=dict(color='orange')
-                ))
-                fig.add_trace(go.Scatter(
-                    x=list(range(len(history['val_recall']))),
-                    y=history['val_recall'],
-                    mode='lines',
-                    name='Recall',
-                    line=dict(color='red')
-                ))
-                fig.update_layout(
-                    title="Validation Metrics Over Time",
-                    xaxis_title="Epoch",
-                    yaxis_title="Score",
-                    showlegend=True
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No validation metrics data available")
-        
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=list(range(len(history['val_f1']))),
+                y=history['val_f1'],
+                mode='lines',
+                name='F1 Score',
+                line=dict(color='green')
+            ))
+            fig.add_trace(go.Scatter(
+                x=list(range(len(history['val_precision']))),
+                y=history['val_precision'],
+                mode='lines',
+                name='Precision',
+                line=dict(color='orange')
+            ))
+            fig.add_trace(go.Scatter(
+                x=list(range(len(history['val_recall']))),
+                y=history['val_recall'],
+                mode='lines',
+                name='Recall',
+                line=dict(color='red')
+            ))
+            fig.update_layout(
+                title="Validation Metrics Over Time",
+                xaxis_title="Epoch",
+                yaxis_title="Score",
+                showlegend=True
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
         # Model architecture info
         st.subheader("Model Architecture")
         model = st.session_state.model
-        
+
         col1, col2 = st.columns(2)
         with col1:
             st.info("**GNN Component**")
             st.write(f"- Layers: {model.gnn_model.num_layers}")
             st.write(f"- Hidden Dimension: {model.gnn_model.hidden_dim}")
             st.write(f"- Input Features: {model.gnn_model.input_dim}")
-        
+
         with col2:
             st.info("**LSTM Component**")
             st.write(f"- Layers: {model.lstm_model.num_layers}")
             st.write(f"- Hidden Dimension: {model.lstm_model.hidden_dim}")
             st.write(f"- Input Features: {model.lstm_model.input_dim}")
-        
+
         # Dataset statistics
         st.subheader("Dataset Statistics")
-        
+
         col1, col2, col3 = st.columns(3)
-        
+
         with col1:
             fraud_by_type = data.groupby('Transaction_Type')['Fraud_Label'].agg(['count', 'sum']).reset_index()
             fraud_by_type['fraud_rate'] = fraud_by_type['sum'] / fraud_by_type['count'] * 100
-            
+
             fig = px.bar(fraud_by_type, x='Transaction_Type', y='fraud_rate',
                         title="Fraud Rate by Transaction Type")
             st.plotly_chart(fig, use_container_width=True)
-        
+
         with col2:
             fraud_by_location = data.groupby('Location')['Fraud_Label'].agg(['count', 'sum']).reset_index()
             fraud_by_location['fraud_rate'] = fraud_by_location['sum'] / fraud_by_location['count'] * 100
-            
+
             fig = px.bar(fraud_by_location, x='Location', y='fraud_rate',
                         title="Fraud Rate by Location")
             st.plotly_chart(fig, use_container_width=True)
-        
+
         with col3:
             fraud_by_device = data.groupby('Device_Type')['Fraud_Label'].agg(['count', 'sum']).reset_index()
             fraud_by_device['fraud_rate'] = fraud_by_device['sum'] / fraud_by_device['count'] * 100
-            
+
             fig = px.bar(fraud_by_device, x='Device_Type', y='fraud_rate',
                         title="Fraud Rate by Device Type")
             st.plotly_chart(fig, use_container_width=True)
