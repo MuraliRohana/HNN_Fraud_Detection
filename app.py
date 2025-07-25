@@ -158,7 +158,7 @@ def load_data():
 
             # Limit to 10,000 rows if larger
             if len(data) > 10000:
-                data = data.sample(n=2000, random_state=42).reset_index(drop=True)
+                data = data.sample(n=5000, random_state=42).reset_index(drop=True)
 
             st.session_state.data = data
             st.success(f"Dataset loaded successfully! Shape: {data.shape}")
