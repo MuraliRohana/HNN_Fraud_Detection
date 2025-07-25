@@ -248,35 +248,35 @@ elif page == "Model Training":
 # Model Evaluation Page
 elif page == "Model Evaluation":
     st.header("📈 Model Evaluation")
-    
-    if not st.session_state.model_trained:
+
+    if not st.session_state.get('model_trained', False):
         st.warning("Please train the model first in the 'Model Training' page.")
     else:
         data = load_data()
         model = st.session_state.model
         preprocessor = st.session_state.preprocessor
         graph_builder = st.session_state.graph_builder
-        
-        # Evaluate model
+
+        # This part is correct
         evaluator = ModelEvaluator()
-        
+
         with st.spinner("Evaluating model performance..."):
             try:
                 # Preprocess data
                 X_processed, y = preprocessor.preprocess(data)
                 graph_data = graph_builder.build_graph(data, X_processed)
-                
+
                 # Make predictions
                 predictions, probabilities = evaluator.evaluate_model(
                     model, graph_data, X_processed, y
                 )
-                
+
                 # Calculate metrics
                 f1 = f1_score(y, predictions)
                 auc = roc_auc_score(y, probabilities)
                 cm = confusion_matrix(y, predictions)
                 report = classification_report(y, predictions, output_dict=True)
-                
+
                 # Display metrics
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
@@ -287,10 +287,10 @@ elif page == "Model Evaluation":
                     st.metric("Precision", f"{report['1']['precision']:.4f}")
                 with col4:
                     st.metric("Recall", f"{report['1']['recall']:.4f}")
-                
+
                 # Visualizations
                 col1, col2 = st.columns(2)
-                
+
                 with col1:
                     st.subheader("Confusion Matrix")
                     fig, ax = plt.subplots()
@@ -299,24 +299,26 @@ elif page == "Model Evaluation":
                     ax.set_ylabel('Actual')
                     ax.set_xlabel('Predicted')
                     st.pyplot(fig)
-                
+
                 with col2:
                     st.subheader("ROC Curve")
-                    fpr, tpr, _ = evaluator.calculate_roc_curve(y, probabilities)
+                    # ❗ FIX: Replaced custom method with the standard sklearn function
+                    fpr, tpr, _ = roc_curve(y, probabilities)
                     fig = px.line(x=fpr, y=tpr, title=f'ROC Curve (AUC = {auc:.4f})')
-                    fig.add_shape(type='line', x0=0, y0=0, x1=1, y1=1, 
-                                 line=dict(dash='dash', color='red'))
-                    fig.update_layout(xaxis_title="False Positive Rate", 
-                                    yaxis_title="True Positive Rate")
+                    fig.add_shape(type='line', x0=0, y0=0, x1=1, y1=1,
+                                  line=dict(dash='dash', color='red'))
+                    fig.update_layout(xaxis_title="False Positive Rate",
+                                      yaxis_title="True Positive Rate")
                     st.plotly_chart(fig, use_container_width=True)
-                
+
                 # Classification report
                 st.subheader("Detailed Classification Report")
                 report_df = pd.DataFrame(report).transpose()
                 st.dataframe(report_df)
-                
+
             except Exception as e:
-                st.error(f"Error during evaluation: {str(e)}")
+                # Use st.exception for a more detailed traceback in the app
+                st.exception(f"Error during evaluation: {e}")
 
 # Real-time Prediction Page
 elif page == "Real-time Prediction":
@@ -397,17 +399,26 @@ elif page == "Real-time Prediction":
                 # Preprocess
                 X_processed, _ = preprocessor.preprocess(transaction_df, is_prediction=True)
                 
-                # Simple prediction (without graph for single transaction)
+                # Simple prediction (create minimal graph for single transaction)
                 model.eval()
                 with torch.no_grad():
-                    # Use only LSTM component for single transaction prediction
+                    # Convert to tensor
                     X_tensor = torch.FloatTensor(X_processed)
-                    # Get sequence features for LSTM
-                    seq_features = X_tensor.unsqueeze(0)  # Add batch dimension
                     
-                    # Forward pass through LSTM only
-                    lstm_out = model.lstm_model(seq_features)
-                    prediction_prob = torch.sigmoid(lstm_out).item()
+                    # Create a simple graph structure for single transaction
+                    # Since we only have one transaction, create a self-loop
+                    edge_index = torch.tensor([[0], [0]], dtype=torch.long)
+                    
+                    # Create graph data object
+                    from torch_geometric.data import Data
+                    graph_data = Data(x=X_tensor, edge_index=edge_index)
+                    
+                    # Prepare sequence data (add batch and sequence dimensions)
+                    seq_features = X_tensor.unsqueeze(0).unsqueeze(0)  # [batch_size, seq_len, features]
+                    
+                    # Forward pass through the full hybrid model
+                    output = model(graph_data, seq_features)
+                    prediction_prob = torch.sigmoid(output).item()
                     prediction = 1 if prediction_prob > 0.5 else 0
                 
                 # Display results
