@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class GNNModel(nn.Module):
-    """Simplified Graph Neural Network model for analyzing transaction relationships"""
+    # Simplified Graph Neural Network model for analyzing transaction relationships
     
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers=2, dropout=0.2):
         super(GNNModel, self).__init__()
@@ -36,17 +36,7 @@ class GNNModel(nn.Module):
         self.projection = nn.Linear(hidden_dim, output_dim)
         
     def forward(self, x, edge_index=None, batch=None):
-        """
-        Forward pass through the simplified GNN
-        
-        Args:
-            x: Node features [num_nodes, input_dim] or batch features [batch_size, input_dim]
-            edge_index: Edge connectivity (not used in simplified version)
-            batch: Batch vector for graph-level prediction
-        
-        Returns:
-            Graph-level embeddings [batch_size, output_dim]
-        """
+
         # Apply MLP layers (simplified graph processing)
         for i, layer in enumerate(self.layers):
             x = layer(x)
@@ -66,7 +56,7 @@ class GNNModel(nn.Module):
         return x
 
 class GraphSAGEModel(nn.Module):
-    """Simplified GraphSAGE-inspired model"""
+    # Simplified GraphSAGE-inspired model
     
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers=2, dropout=0.2):
         super(GraphSAGEModel, self).__init__()
@@ -88,17 +78,7 @@ class GraphSAGEModel(nn.Module):
         self.projection = nn.Linear(hidden_dim, output_dim)
         
     def forward(self, x, edge_index=None, batch=None):
-        """
-        Forward pass through simplified GraphSAGE
-        
-        Args:
-            x: Node features [num_nodes, input_dim] or batch features [batch_size, input_dim]
-            edge_index: Edge connectivity (not used in simplified version)
-            batch: Batch vector for graph-level prediction
-        
-        Returns:
-            Graph-level embeddings [batch_size, output_dim]
-        """
+
         for layer in self.layers:
             x = layer(x)
             x = F.relu(x)
@@ -108,7 +88,7 @@ class GraphSAGEModel(nn.Module):
         return x
 
 class AttentionGNN(nn.Module):
-    """Simplified GNN with attention mechanism for fraud detection"""
+    # Simplified GNN with attention mechanism for fraud detection
     
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers=2, dropout=0.2, num_heads=4):
         super(AttentionGNN, self).__init__()
@@ -139,17 +119,7 @@ class AttentionGNN(nn.Module):
         self.projection = nn.Linear(hidden_dim, output_dim)
         
     def forward(self, x, edge_index=None, batch=None):
-        """
-        Forward pass with attention
-        
-        Args:
-            x: Node features [batch_size, input_dim] or [num_nodes, input_dim]
-            edge_index: Edge connectivity (not used in simplified version)
-            batch: Batch vector for graph-level prediction
-        
-        Returns:
-            Graph-level embeddings [batch_size, output_dim]
-        """
+
         # Input projection
         x = self.input_proj(x)
         x = F.relu(x)

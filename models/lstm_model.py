@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class LSTMModel(nn.Module):
-    """LSTM model for temporal pattern analysis in fraud detection"""
+    # LSTM model for temporal pattern analysis in fraud detection
     
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers=2, dropout=0.2, bidirectional=False):
         super(LSTMModel, self).__init__()
@@ -38,15 +38,7 @@ class LSTMModel(nn.Module):
         self.fc2 = nn.Linear(hidden_dim, output_dim)
         
     def forward(self, x):
-        """
-        Forward pass through LSTM
-        
-        Args:
-            x: Input sequences [batch_size, seq_len, input_dim]
-        
-        Returns:
-            Output embeddings [batch_size, output_dim]
-        """
+
         batch_size = x.size(0)
         
         # LSTM forward pass
@@ -68,7 +60,7 @@ class LSTMModel(nn.Module):
         return out
 
 class GRUModel(nn.Module):
-    """GRU model for temporal pattern analysis"""
+    # GRU model for temporal pattern analysis
     
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers=2, dropout=0.2, bidirectional=False):
         super(GRUModel, self).__init__()
@@ -103,15 +95,7 @@ class GRUModel(nn.Module):
         self.fc2 = nn.Linear(hidden_dim, output_dim)
         
     def forward(self, x):
-        """
-        Forward pass through GRU
-        
-        Args:
-            x: Input sequences [batch_size, seq_len, input_dim]
-        
-        Returns:
-            Output embeddings [batch_size, output_dim]
-        """
+
         batch_size = x.size(0)
         
         # GRU forward pass
@@ -133,7 +117,7 @@ class GRUModel(nn.Module):
         return out
 
 class AdvancedLSTM(nn.Module):
-    """Advanced LSTM with multiple attention mechanisms"""
+    # Advanced LSTM with multiple attention mechanisms
     
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers=2, dropout=0.2, 
                  bidirectional=True, use_self_attention=True):
@@ -190,15 +174,7 @@ class AdvancedLSTM(nn.Module):
         )
         
     def forward(self, x):
-        """
-        Forward pass through Advanced LSTM
-        
-        Args:
-            x: Input sequences [batch_size, seq_len, input_dim]
-        
-        Returns:
-            Output embeddings [batch_size, output_dim]
-        """
+
         # Input projection
         x = self.input_proj(x)
         x = F.relu(x)
@@ -232,7 +208,7 @@ class AdvancedLSTM(nn.Module):
         return output
 
 class TemporalConvLSTM(nn.Module):
-    """Combination of 1D CNN and LSTM for temporal fraud detection"""
+    # Combination of 1D CNN and LSTM for temporal fraud detection
     
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers=2, dropout=0.2):
         super(TemporalConvLSTM, self).__init__()
@@ -272,15 +248,7 @@ class TemporalConvLSTM(nn.Module):
         self.output_layer = nn.Linear(hidden_dim * 2, output_dim)
         
     def forward(self, x):
-        """
-        Forward pass through Temporal Conv-LSTM
-        
-        Args:
-            x: Input sequences [batch_size, seq_len, input_dim]
-        
-        Returns:
-            Output embeddings [batch_size, output_dim]
-        """
+
         # Transpose for conv1d (batch_size, input_dim, seq_len)
         x_conv = x.transpose(1, 2)
         

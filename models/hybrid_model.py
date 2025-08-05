@@ -5,7 +5,7 @@ from models.gnn_model import GNNModel, GraphSAGEModel, AttentionGNN
 from models.lstm_model import LSTMModel, AdvancedLSTM, TemporalConvLSTM
 
 class HybridFraudDetector(nn.Module):
-    """Hybrid Neural Network combining GNN and LSTM for fraud detection"""
+    # Hybrid Neural Network combining GNN and LSTM for fraud detection
     
     def __init__(self, gnn_input_dim, lstm_input_dim, hidden_dim=128, 
                  gnn_layers=2, lstm_layers=2, dropout=0.2, fusion_method='concat'):
@@ -62,7 +62,7 @@ class HybridFraudDetector(nn.Module):
         self._initialize_weights()
         
     def _initialize_weights(self):
-        """Initialize model weights"""
+        # Initialize model weights
         for module in self.modules():
             if isinstance(module, nn.Linear):
                 nn.init.xavier_uniform_(module.weight)
@@ -70,16 +70,7 @@ class HybridFraudDetector(nn.Module):
                     nn.init.zeros_(module.bias)
     
     def forward(self, graph_data, sequence_data):
-        """
-        Forward pass through hybrid model
-        
-        Args:
-            graph_data: Graph data containing node features, edge indices, and batch info
-            sequence_data: Sequential data [batch_size, seq_len, features]
-        
-        Returns:
-            Fraud probability scores [batch_size, 1]
-        """
+
         # Get batch size from sequence data
         batch_size = sequence_data.size(0)
         
@@ -144,17 +135,7 @@ class HybridFraudDetector(nn.Module):
         return output
     
     def predict(self, graph_data, sequence_data):
-        """
-        Make predictions with probability scores
-        
-        Args:
-            graph_data: Graph data
-            sequence_data: Sequential data
-        
-        Returns:
-            predictions: Binary predictions (0 or 1)
-            probabilities: Fraud probabilities
-        """
+
         with torch.no_grad():
             logits = self.forward(graph_data, sequence_data)
             probabilities = torch.sigmoid(logits).squeeze()
@@ -163,7 +144,7 @@ class HybridFraudDetector(nn.Module):
         return predictions, probabilities
 
 class EnsembleHybridModel(nn.Module):
-    """Ensemble of multiple hybrid models for improved performance"""
+    # Ensemble of multiple hybrid models for improved performance
     
     def __init__(self, gnn_input_dim, lstm_input_dim, hidden_dim=128, 
                  num_models=3, gnn_layers=2, lstm_layers=2, dropout=0.2):
@@ -189,16 +170,7 @@ class EnsembleHybridModel(nn.Module):
         self.ensemble_weights = nn.Parameter(torch.ones(num_models) / num_models)
         
     def forward(self, graph_data, sequence_data):
-        """
-        Forward pass through ensemble
-        
-        Args:
-            graph_data: Graph data
-            sequence_data: Sequential data
-        
-        Returns:
-            Ensemble predictions
-        """
+
         outputs = []
         
         for model in self.models:
@@ -213,7 +185,7 @@ class EnsembleHybridModel(nn.Module):
         return ensemble_output
 
 class AdaptiveHybridModel(nn.Module):
-    """Adaptive hybrid model that learns to weight GNN vs LSTM based on input"""
+    # Adaptive hybrid model that learns to weight GNN vs LSTM based on input
     
     def __init__(self, gnn_input_dim, lstm_input_dim, hidden_dim=128, 
                  gnn_layers=2, lstm_layers=2, dropout=0.2):
@@ -261,16 +233,6 @@ class AdaptiveHybridModel(nn.Module):
         )
         
     def forward(self, graph_data, sequence_data):
-        """
-        Forward pass with adaptive weighting
-        
-        Args:
-            graph_data: Graph data
-            sequence_data: Sequential data
-        
-        Returns:
-            Fraud predictions
-        """
         # Get embeddings from both models
         gnn_embeddings = self.gnn_model(
             x=graph_data.x,
@@ -293,7 +255,7 @@ class AdaptiveHybridModel(nn.Module):
         return output, weights
 
 class MultitaskHybridModel(nn.Module):
-    """Multitask learning model for fraud detection and risk assessment"""
+    # Multitask learning model for fraud detection and risk assessment
     
     def __init__(self, gnn_input_dim, lstm_input_dim, hidden_dim=128, 
                  gnn_layers=2, lstm_layers=2, dropout=0.2):
@@ -351,16 +313,7 @@ class MultitaskHybridModel(nn.Module):
         )
         
     def forward(self, graph_data, sequence_data):
-        """
-        Forward pass for multitask learning
-        
-        Args:
-            graph_data: Graph data
-            sequence_data: Sequential data
-        
-        Returns:
-            Dictionary of task predictions
-        """
+
         # Get embeddings
         gnn_embeddings = self.gnn_model(
             x=graph_data.x,

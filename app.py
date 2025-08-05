@@ -26,13 +26,13 @@ from trainer import ModelTrainer
 # Page configuration
 st.set_page_config(
     page_title="HNN Fraud Detection System",
-    page_icon="🔒",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # Main title
-st.title("🔒 Hybrid Neural Network (GNN+LSTM) Credit Card Fraud Detection")
+st.title("Real-Time Credit Card Fraud Detection using Hybrid Neural Network")
 st.markdown("---")
 
 # Initialize session state
@@ -71,21 +71,11 @@ if st.sidebar.button("Performance Dashboard"):
 page = st.session_state.page
 
 def calculate_rule_based_risk_score(transaction_data, user_avg_amount=200.0):
-    """
-    Calculate rule-based risk score using heuristics
-    
-    Args:
-        transaction_data: Dictionary containing transaction details
-        user_avg_amount: User's average transaction amount over 7 days
-    
-    Returns:
-        risk_score: Float between 0.0 and 1.0
-        risk_factors: List of triggered risk factors
-    """
+
     risk_score = 0.0
     risk_factors = []
     
-    # 🧠 User & Transaction Behavior Rules
+    #User & Transaction Behavior Rules
     if transaction_data['Transaction_Amount'] > user_avg_amount * 2:
         risk_score += 0.2
         risk_factors.append("High transaction amount (>2x average)")
@@ -112,7 +102,7 @@ def calculate_rule_based_risk_score(transaction_data, user_avg_amount=200.0):
         risk_score += 0.2
         risk_factors.append("Insufficient account balance")
     
-    # 📍 Location & Device Rules
+    # Location & Device Rules
     unusual_locations = ['Tokyo', 'Sydney', 'Mumbai']  # Example unusual locations
     if transaction_data['Location'] in unusual_locations:
         risk_score += 0.2
@@ -130,7 +120,7 @@ def calculate_rule_based_risk_score(transaction_data, user_avg_amount=200.0):
         risk_score += 0.1
         risk_factors.append("Online transaction")
     
-    # ⚠️ High-Risk Flags
+    # High-Risk Flags
     if transaction_data['IP_Address_Flag']:
         risk_score += 0.3
         risk_factors.append("Suspicious IP address")
@@ -150,7 +140,7 @@ def calculate_rule_based_risk_score(transaction_data, user_avg_amount=200.0):
 
 
 def load_data():
-    """Load and reduce the dataset to a maximum of 10,000 rows"""
+    # Load and reduce the dataset to a maximum of 5000 rows
     if 'data' not in st.session_state:
         try:
             # Load the full dataset
@@ -158,7 +148,7 @@ def load_data():
 
             # Limit to 10,000 rows if larger
             if len(data) > 10000:
-                data = data.sample(n=10000, random_state=42).reset_index(drop=True)
+                data = data.sample(n=5000, random_state=42).reset_index(drop=True)
 
             st.session_state.data = data
             st.success(f"Dataset loaded successfully! Shape: {data.shape}")
@@ -169,7 +159,7 @@ def load_data():
 
 # Data Overview Page
 if page == "Data Overview":
-    st.header("📊 Dataset Overview")
+    st.header("Dataset Overview")
     
     data = load_data()
     
@@ -216,7 +206,7 @@ if page == "Data Overview":
 
 # Model Training Page
 elif page == "Model Training":
-    st.header("🧠 Model Training")
+    st.header("Model Training")
     
     data = load_data()
     
@@ -326,7 +316,7 @@ elif page == "Model Training":
 
 # Model Evaluation Page
 elif page == "Model Evaluation":
-    st.header("📈 Model Evaluation")
+    st.header("Model Evaluation")
 
     if not st.session_state.model_trained:
         st.warning("Please train the model first in the 'Model Training' page.")
@@ -347,7 +337,7 @@ elif page == "Model Evaluation":
 
                 # Prepare sequence data for evaluation
                 def prepare_sequence_data_and_labels(X, y, sequence_length=10):
-                    """Prepare sequence data for LSTM and align labels"""
+                    # Prepare sequence data for LSTM and align labels
                     sequences = []
                     aligned_labels = []
                     
@@ -419,7 +409,7 @@ elif page == "Model Evaluation":
 
 # Real-time Prediction Page
 elif page == "Real-time Prediction":
-    st.header("🔍 Real-time Fraud Prediction")
+    st.header("Real-time Fraud Prediction")
     
     if not st.session_state.model_trained:
         st.warning("Please train the model first in the 'Model Training' page.")
@@ -526,22 +516,22 @@ elif page == "Real-time Prediction":
                     prediction = 1 if prediction_prob > 0.5 else 0
 
                 # Display results prominently
-                st.subheader("🎯 Prediction Results")
+                st.subheader("Prediction Results")
                 
                 # Main results in prominent cards
                 col1, col2, col3 = st.columns(3)
 
                 with col1:
-                    st.markdown("### 🤖 ML Model Prediction")
+                    st.markdown("### ML Model Prediction")
                     if prediction == 1:
-                        st.error("🚨 **FRAUD DETECTED**")
+                        st.error("**FRAUD DETECTED**")
                         st.error(f"**Probability: {prediction_prob:.4f}**")
                     else:
-                        st.success("✅ **LEGITIMATE**")
+                        st.success("**LEGITIMATE**")
                         st.success(f"**Probability: {prediction_prob:.4f}**")
 
                 with col2:
-                    st.markdown("### 📊 Rule-Based Risk Score")
+                    st.markdown("### Rule-Based Risk Score")
                     risk_level = "🔴 HIGH" if calculated_risk_score > 0.7 else "🟡 MEDIUM" if calculated_risk_score > 0.4 else "🟢 LOW"
                     
                     if calculated_risk_score > 0.7:
@@ -555,23 +545,23 @@ elif page == "Real-time Prediction":
                         st.success(f"**Risk Level: {risk_level}**")
 
                 with col3:
-                    st.markdown("### 🎯 Combined Assessment")
+                    st.markdown("### Combined Assessment")
                     combined_score = (prediction_prob + calculated_risk_score) / 2
                     if combined_score > 0.6:
-                        final_decision = "🚨 **HIGH RISK**"
+                        final_decision = "**HIGH RISK**"
                         st.error(final_decision)
                         st.error(f"**Combined Score: {combined_score:.3f}**")
                     elif combined_score > 0.3:
-                        final_decision = "⚠️ **MEDIUM RISK**"
+                        final_decision = "**MEDIUM RISK**"
                         st.warning(final_decision)
                         st.warning(f"**Combined Score: {combined_score:.3f}**")
                     else:
-                        final_decision = "✅ **LOW RISK**"
+                        final_decision = "**LOW RISK**"
                         st.success(final_decision)
                         st.success(f"**Combined Score: {combined_score:.3f}**")
 
                 # Detailed gauge visualizations
-                st.subheader("📈 Score Visualizations")
+                st.subheader("Score Visualizations")
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -637,29 +627,29 @@ elif page == "Real-time Prediction":
                     st.plotly_chart(fig_combined, use_container_width=True)
                 
                 # Score breakdown summary
-                st.subheader("📋 Score Breakdown")
+                st.subheader("Score Breakdown")
                 breakdown_col1, breakdown_col2 = st.columns(2)
                 
                 with breakdown_col1:
                     st.info("**Risk Composition Details:**")
-                    st.write(f"🤖 **ML Model Score:** {prediction_prob:.3f}")
-                    st.write(f"📊 **Rule-Based Score:** {calculated_risk_score:.3f}")
-                    st.write(f"🎯 **Combined Score:** {combined_score:.3f}")
-                    st.write(f"🏁 **Final Decision:** {final_decision}")
+                    st.write(f"**ML Model Score:** {prediction_prob:.3f}")
+                    st.write(f"**Rule-Based Score:** {calculated_risk_score:.3f}")
+                    st.write(f"**Combined Score:** {combined_score:.3f}")
+                    st.write(f"**Final Decision:** {final_decision}")
 
                 with breakdown_col2:
                     st.info("**Decision Thresholds:**")
                     st.write("🟢 **Low Risk:** < 0.3")
                     st.write("🟡 **Medium Risk:** 0.3 - 0.6")
                     st.write("🔴 **High Risk:** > 0.6")
-                    st.write(f"📊 **Rule Factors Triggered:** {len(risk_factors)}")
+                    st.write(f"**Rule Factors Triggered:** {len(risk_factors)}")
 
                 # Detailed risk factors analysis
                 st.subheader("Triggered Risk Factors")
                 
                 if risk_factors:
                     # Create tabs for different risk categories
-                    risk_tabs = st.tabs(["🧠 Behavior", "📍 Location & Device", "⚠️ High-Risk Flags"])
+                    risk_tabs = st.tabs(["Behavior", "Location & Device", "High-Risk Flags"])
                     
                     behavior_factors = [f for f in risk_factors if any(keyword in f.lower() for keyword in ['amount', 'failed', 'daily', 'distance', 'card', 'balance'])]
                     location_factors = [f for f in risk_factors if any(keyword in f.lower() for keyword in ['location', 'device', 'authentication', 'online'])]
@@ -668,23 +658,23 @@ elif page == "Real-time Prediction":
                     with risk_tabs[0]:
                         if behavior_factors:
                             for factor in behavior_factors:
-                                st.warning(f"⚠️ {factor}")
+                                st.warning(f"{factor}")
                         else:
-                            st.success("✅ No behavioral risk factors detected")
+                            st.success("No behavioral risk factors detected")
                     
                     with risk_tabs[1]:
                         if location_factors:
                             for factor in location_factors:
-                                st.warning(f"⚠️ {factor}")
+                                st.warning(f"{factor}")
                         else:
-                            st.success("✅ No location/device risk factors detected")
+                            st.success("No location/device risk factors detected")
                     
                     with risk_tabs[2]:
                         if high_risk_factors:
                             for factor in high_risk_factors:
-                                st.error(f"🚨 {factor}")
+                                st.error(f"{factor}")
                         else:
-                            st.success("✅ No high-risk flags detected")
+                            st.success("No high-risk flags detected")
                     
                     # Risk mitigation suggestions
                     st.subheader("Risk Mitigation Recommendations")
@@ -704,14 +694,14 @@ elif page == "Real-time Prediction":
                         st.write("• Process transaction normally")
                         st.write("• Continue standard monitoring")
                 else:
-                    st.success("✅ No risk factors detected - Transaction appears legitimate")
+                    st.success("No risk factors detected - Transaction appears legitimate")
 
             except Exception as e:
                 st.error(f"Error making prediction: {str(e)}")
 
 # Performance Dashboard Page
 elif page == "Performance Dashboard":
-    st.header("📊 Performance Dashboard")
+    st.header("Performance Dashboard")
 
     if not st.session_state.model_trained:
         st.warning("Please train the model first in the 'Model Training' page.")
@@ -839,4 +829,4 @@ elif page == "Performance Dashboard":
 
 # Footer
 st.markdown("---")
-st.markdown("**HNN Fraud Detection System** - Powered by PyTorch Geometric and Streamlit")
+st.markdown("**HNN Credit card Fraud Detection System**")

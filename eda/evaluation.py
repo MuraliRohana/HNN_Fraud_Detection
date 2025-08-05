@@ -16,27 +16,13 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class ModelEvaluator:
-    """Comprehensive model evaluation for fraud detection"""
     
     def __init__(self):
         self.metrics_history = []
         self.predictions_history = []
     
     def evaluate_model(self, model, graph_data, sequence_data, y_true, threshold=0.5):
-        """
-        Evaluate model performance
-        
-        Args:
-            model: Trained model
-            graph_data: Graph data
-            sequence_data: Sequential data
-            y_true: True labels
-            threshold: Classification threshold
-        
-        Returns:
-            predictions: Binary predictions
-            probabilities: Fraud probabilities
-        """
+
         model.eval()
         
         with torch.no_grad():
@@ -60,17 +46,7 @@ class ModelEvaluator:
         return predictions, probabilities
     
     def calculate_metrics(self, y_true, y_pred, y_prob):
-        """
-        Calculate comprehensive evaluation metrics
-        
-        Args:
-            y_true: True labels
-            y_pred: Predicted labels
-            y_prob: Predicted probabilities
-        
-        Returns:
-            Dictionary of metrics
-        """
+
         metrics = {}
         
         # Basic metrics
@@ -106,27 +82,16 @@ class ModelEvaluator:
         return metrics
     
     def calculate_roc_curve(self, y_true, y_prob):
-        """Calculate ROC curve"""
         fpr, tpr, thresholds = roc_curve(y_true, y_prob)
         return fpr, tpr, thresholds
     
     def calculate_pr_curve(self, y_true, y_prob):
-        """Calculate Precision-Recall curve"""
+        precision, recall, thresholds = precision_recall_curve(y_true, y_prob)
         precision, recall, thresholds = precision_recall_curve(y_true, y_prob)
         return precision, recall, thresholds
     
     def plot_confusion_matrix(self, y_true, y_pred, normalize=False):
-        """
-        Plot confusion matrix
-        
-        Args:
-            y_true: True labels
-            y_pred: Predicted labels
-            normalize: Whether to normalize the matrix
-        
-        Returns:
-            Plotly figure
-        """
+
         cm = confusion_matrix(y_true, y_pred)
         
         if normalize:
@@ -150,16 +115,7 @@ class ModelEvaluator:
         return fig
     
     def plot_roc_curve(self, y_true, y_prob):
-        """
-        Plot ROC curve
-        
-        Args:
-            y_true: True labels
-            y_prob: Predicted probabilities
-        
-        Returns:
-            Plotly figure
-        """
+
         fpr, tpr, _ = self.calculate_roc_curve(y_true, y_prob)
         auc_score = roc_auc_score(y_true, y_prob)
         
@@ -193,16 +149,7 @@ class ModelEvaluator:
         return fig
     
     def plot_precision_recall_curve(self, y_true, y_prob):
-        """
-        Plot Precision-Recall curve
-        
-        Args:
-            y_true: True labels
-            y_prob: Predicted probabilities
-        
-        Returns:
-            Plotly figure
-        """
+
         precision, recall, _ = self.calculate_pr_curve(y_true, y_prob)
         auc_pr = average_precision_score(y_true, y_prob)
         
@@ -237,16 +184,7 @@ class ModelEvaluator:
         return fig
     
     def plot_threshold_analysis(self, y_true, y_prob):
-        """
-        Plot metrics vs threshold analysis
-        
-        Args:
-            y_true: True labels
-            y_prob: Predicted probabilities
-        
-        Returns:
-            Plotly figure
-        """
+
         thresholds = np.linspace(0, 1, 101)
         precision_scores = []
         recall_scores = []
@@ -303,16 +241,7 @@ class ModelEvaluator:
         return fig
     
     def plot_feature_importance(self, model, feature_names):
-        """
-        Plot feature importance (if available)
-        
-        Args:
-            model: Trained model
-            feature_names: List of feature names
-        
-        Returns:
-            Plotly figure or None
-        """
+
         # This is a placeholder - actual implementation depends on model architecture
         # For neural networks, this might involve gradient-based importance or SHAP values
         
@@ -340,18 +269,7 @@ class ModelEvaluator:
         return fig
     
     def create_evaluation_report(self, y_true, y_pred, y_prob, feature_names=None):
-        """
-        Create comprehensive evaluation report
-        
-        Args:
-            y_true: True labels
-            y_pred: Predicted labels
-            y_prob: Predicted probabilities
-            feature_names: List of feature names
-        
-        Returns:
-            Dictionary containing all evaluation results
-        """
+
         report = {}
         
         # Calculate metrics
@@ -384,15 +302,7 @@ class ModelEvaluator:
         return report
     
     def compare_models(self, model_results):
-        """
-        Compare multiple models
-        
-        Args:
-            model_results: Dictionary of model names and their evaluation results
-        
-        Returns:
-            Comparison DataFrame and plots
-        """
+
         comparison_data = []
         
         for model_name, results in model_results.items():
@@ -433,19 +343,7 @@ class ModelEvaluator:
         return comparison_df, fig
     
     def get_misclassified_samples(self, X, y_true, y_pred, y_prob, top_n=10):
-        """
-        Get samples that were misclassified
-        
-        Args:
-            X: Feature matrix
-            y_true: True labels
-            y_pred: Predicted labels
-            y_prob: Predicted probabilities
-            top_n: Number of top misclassified samples to return
-        
-        Returns:
-            DataFrame of misclassified samples
-        """
+
         # Find misclassified samples
         misclassified_mask = (y_true != y_pred)
         

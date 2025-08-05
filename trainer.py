@@ -17,7 +17,6 @@ from eda.data_preprocessor import DataPreprocessor
 from eda.graph_builder import GraphBuilder
 
 class ModelTrainer:
-    """Training pipeline for hybrid fraud detection model"""
     
     def __init__(self, hidden_dim=128, gnn_layers=2, lstm_layers=2, dropout=0.2, 
                  learning_rate=0.001, weight_decay=1e-5):
@@ -44,21 +43,7 @@ class ModelTrainer:
     
     def _create_data_loaders(self, X, y, batch_size=64, test_size=0.2, val_size=0.1, 
                            use_smote=True, random_state=42):
-        """
-        Create data loaders for training, validation, and testing
-        
-        Args:
-            X: Feature matrix
-            y: Target labels
-            batch_size: Batch size for training
-            test_size: Proportion of data for testing
-            val_size: Proportion of training data for validation
-            use_smote: Whether to apply SMOTE for class balancing
-            random_state: Random state for reproducibility
-        
-        Returns:
-            Dictionary of data loaders and indices
-        """
+
         # First split: separate test set
         X_temp, X_test, y_temp, y_test = train_test_split(
             X, y, test_size=test_size, random_state=random_state, stratify=y
@@ -110,18 +95,7 @@ class ModelTrainer:
         }
     
     def _prepare_graph_data(self, data, X, indices, graph_builder):
-        """
-        Prepare graph data for the given indices
-        
-        Args:
-            data: Original transaction data
-            X: Processed features
-            indices: Data indices
-            graph_builder: Graph builder instance
-        
-        Returns:
-            Graph data
-        """
+
         # Sample data for the given indices
         sampled_data = data.iloc[indices].copy()
         sampled_features = X[indices]
@@ -132,16 +106,7 @@ class ModelTrainer:
         return graph_data
     
     def _prepare_sequence_data(self, X, sequence_length=10):
-        """
-        Prepare sequence data for LSTM
-        
-        Args:
-            X: Feature matrix
-            sequence_length: Length of sequences
-        
-        Returns:
-            Sequence data tensor
-        """
+
         # For simplicity, we'll use sliding window approach
         # In practice, you might want to group by user
         sequences = []
@@ -157,7 +122,7 @@ class ModelTrainer:
         return torch.FloatTensor(np.array(sequences))
     
     def _calculate_class_weights(self, y):
-        """Calculate class weights for imbalanced dataset"""
+        
         unique_classes, counts = np.unique(y, return_counts=True)
         total_samples = len(y)
         
@@ -168,20 +133,7 @@ class ModelTrainer:
         return weights.to(self.device)
     
     def train_epoch(self, model, train_loader, optimizer, criterion, graph_data, epoch):
-        """
-        Train for one epoch
-        
-        Args:
-            model: Model to train
-            train_loader: Training data loader
-            optimizer: Optimizer
-            criterion: Loss criterion
-            graph_data: Graph data
-            epoch: Current epoch number
-        
-        Returns:
-            Average training loss
-        """
+
         model.train()
         total_loss = 0
         num_batches = 0
@@ -229,16 +181,7 @@ class ModelTrainer:
         return total_loss / num_batches
     
     def _create_batch_graph_data(self, graph_data, batch_size):
-        """
-        Create batch graph data by replicating the graph structure
-        
-        Args:
-            graph_data: Original graph data
-            batch_size: Desired batch size
-        
-        Returns:
-            Batched graph data
-        """
+
         # For simplicity, we'll create a batch by replicating the graph
         # In practice, you might want more sophisticated batching
         
@@ -267,18 +210,7 @@ class ModelTrainer:
             return SimpleGraphData().to(self.device)
     
     def validate_epoch(self, model, val_loader, criterion, graph_data):
-        """
-        Validate for one epoch
-        
-        Args:
-            model: Model to validate
-            val_loader: Validation data loader
-            criterion: Loss criterion
-            graph_data: Graph data
-        
-        Returns:
-            Dictionary of validation metrics
-        """
+
         model.eval()
         total_loss = 0
         all_predictions = []
@@ -339,23 +271,7 @@ class ModelTrainer:
     
     def train(self, graph_data, X, y, epochs=50, batch_size=64, test_size=0.2, 
               use_smote=True, random_state=42, patience=10):
-        """
-        Main training loop
-        
-        Args:
-            graph_data: Graph data
-            X: Feature matrix
-            y: Target labels
-            epochs: Number of training epochs
-            batch_size: Batch size
-            test_size: Test set proportion
-            use_smote: Whether to use SMOTE
-            random_state: Random state
-            patience: Early stopping patience
-        
-        Returns:
-            Trained model and training history
-        """
+
         print("Starting model training...")
         print(f"Dataset size: {len(X)}, Features: {X.shape[1]}")
         print(f"Fraud rate: {y.mean():.3f}")
@@ -429,7 +345,7 @@ class ModelTrainer:
             epoch_time = time.time() - epoch_start_time
             
             # Print progress
-            if epoch % 5 == 0 or epoch == epochs - 1:
+            if epoch % 1 == 0 or epoch == epochs - 1:
                 print(f"Epoch {epoch+1}/{epochs} ({epoch_time:.1f}s)")
                 print(f"  Train Loss: {train_loss:.4f}")
                 print(f"  Val Loss: {val_metrics['loss']:.4f}")
@@ -471,7 +387,7 @@ class ModelTrainer:
         return model, self.training_history
     
     def save_model(self, model, filepath):
-        """Save trained model"""
+
         torch.save({
             'model_state_dict': model.state_dict(),
             'training_history': self.training_history,
@@ -485,7 +401,7 @@ class ModelTrainer:
         print(f"Model saved to {filepath}")
     
     def load_model(self, filepath, gnn_input_dim, lstm_input_dim):
-        """Load trained model"""
+
         checkpoint = torch.load(filepath, map_location=self.device)
         
         model = HybridFraudDetector(

@@ -17,7 +17,7 @@ class SimpleGraphData:
         self.batch = batch
 
 class GraphBuilder:
-    """Build transaction graphs for GNN input"""
+    
     
     def __init__(self, similarity_threshold=0.8, max_neighbors=10):
         self.similarity_threshold = similarity_threshold
@@ -27,7 +27,7 @@ class GraphBuilder:
         self.merchant_encoder = {}
         
     def _encode_entities(self, data):
-        """Encode users and merchants to node indices"""
+        
         # Encode users
         unique_users = data['User_ID'].unique()
         self.user_encoder = {user: idx for idx, user in enumerate(unique_users)}
@@ -40,7 +40,7 @@ class GraphBuilder:
         return len(unique_users), len(unique_merchants)
     
     def _create_user_similarity_edges(self, data, user_features):
-        """Create edges between similar users"""
+        
         edges = []
         
         # Calculate user similarities based on transaction patterns
@@ -74,7 +74,7 @@ class GraphBuilder:
         return edges
     
     def _create_user_merchant_edges(self, data):
-        """Create edges between users and merchants"""
+        
         edges = []
         
         for _, row in data.iterrows():
@@ -88,7 +88,7 @@ class GraphBuilder:
         return edges
     
     def _create_temporal_edges(self, data):
-        """Create edges based on temporal proximity"""
+        
         edges = []
         
         # Sort by timestamp
@@ -108,7 +108,7 @@ class GraphBuilder:
         return edges
     
     def _create_fraud_pattern_edges(self, data):
-        """Create edges based on potential fraud patterns"""
+        
         edges = []
         
         # Connect users with similar fraud risk patterns
@@ -139,7 +139,7 @@ class GraphBuilder:
         return edges
     
     def _create_node_features(self, data, processed_features):
-        """Create node feature matrix"""
+        
         num_users = len(self.user_encoder)
         num_merchants = len(self.merchant_encoder)
         total_nodes = num_users + num_merchants
@@ -173,7 +173,7 @@ class GraphBuilder:
         return node_features
     
     def _create_edge_attributes(self, edge_list, data):
-        """Create edge attributes for weighted edges"""
+        
         edge_attrs = []
         
         for edge in edge_list:
@@ -183,16 +183,7 @@ class GraphBuilder:
         return np.array(edge_attrs)
     
     def build_graph(self, data, processed_features):
-        """
-        Build transaction graph
-        
-        Args:
-            data: Original transaction data
-            processed_features: Preprocessed feature matrix
-        
-        Returns:
-            PyTorch Geometric Data object
-        """
+
         # Encode entities
         num_users, num_merchants = self._encode_entities(data)
         
@@ -243,16 +234,7 @@ class GraphBuilder:
         return graph_data
     
     def create_batch_graphs(self, data_list, processed_features_list):
-        """
-        Create batch of graphs for mini-batch training
-        
-        Args:
-            data_list: List of transaction data batches
-            processed_features_list: List of processed feature matrices
-        
-        Returns:
-            Simple batched graph data object
-        """
+
         graph_list = []
         
         for data, features in zip(data_list, processed_features_list):
@@ -267,16 +249,7 @@ class GraphBuilder:
             return SimpleGraphData()
     
     def build_transaction_graph(self, data, processed_features):
-        """
-        Alternative graph construction: transactions as nodes
-        
-        Args:
-            data: Transaction data
-            processed_features: Processed features
-        
-        Returns:
-            Graph with transactions as nodes
-        """
+
         num_transactions = len(data)
         
         # Use processed features directly as node features
@@ -343,15 +316,7 @@ class GraphBuilder:
         return graph_data
     
     def analyze_graph_properties(self, graph_data):
-        """
-        Analyze properties of the constructed graph
-        
-        Args:
-            graph_data: PyTorch Geometric Data object
-        
-        Returns:
-            Dictionary of graph properties
-        """
+
         num_nodes = graph_data.x.size(0)
         num_edges = graph_data.edge_index.size(1)
         

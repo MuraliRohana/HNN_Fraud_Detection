@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class DataPreprocessor:
-    """Data preprocessing pipeline for fraud detection"""
+
     
     def __init__(self):
         self.scalers = {}
@@ -38,7 +38,6 @@ class DataPreprocessor:
         ]
     
     def _parse_timestamp(self, data):
-        """Parse timestamp and extract temporal features"""
         data = data.copy()
         
         # Parse timestamp
@@ -58,7 +57,6 @@ class DataPreprocessor:
         return data
     
     def _create_derived_features(self, data):
-        """Create derived features for better fraud detection"""
         data = data.copy()
         
         # Amount-based features
@@ -85,7 +83,6 @@ class DataPreprocessor:
         return data
     
     def _encode_categorical_features(self, data, is_training=True):
-        """Encode categorical features"""
         data = data.copy()
         
         for col in self.categorical_columns:
@@ -108,7 +105,6 @@ class DataPreprocessor:
         return data
     
     def _scale_numerical_features(self, data, is_training=True):
-        """Scale numerical features"""
         data = data.copy()
         
         # Get all numerical columns including derived ones
@@ -136,7 +132,6 @@ class DataPreprocessor:
         return data
     
     def _select_features(self, X, y, k=50):
-        """Select top k features using statistical tests"""
         if self.feature_selector is None:
             self.feature_selector = SelectKBest(score_func=f_classif, k=k)
             X_selected = self.feature_selector.fit_transform(X, y)
@@ -147,7 +142,6 @@ class DataPreprocessor:
         return X_selected
     
     def _prepare_features(self, data):
-        """Prepare final feature matrix"""
         feature_columns = []
         
         # Add encoded categorical features
@@ -180,17 +174,7 @@ class DataPreprocessor:
         return data[feature_columns].values
     
     def preprocess(self, data, is_prediction=False):
-        """
-        Main preprocessing pipeline
-        
-        Args:
-            data: Raw transaction data
-            is_prediction: Whether this is for prediction (no target variable)
-        
-        Returns:
-            X: Processed feature matrix
-            y: Target variable (if not prediction)
-        """
+
         # Create a copy to avoid modifying original data
         data_processed = data.copy()
         
@@ -229,19 +213,7 @@ class DataPreprocessor:
             return X, None
     
     def create_sequences(self, X, y=None, sequence_length=10, user_col=None):
-        """
-        Create sequences for LSTM input
-        
-        Args:
-            X: Feature matrix
-            y: Target variable
-            sequence_length: Length of sequences
-            user_col: User ID column for grouping
-        
-        Returns:
-            X_sequences: Sequential features
-            y_sequences: Target sequences (if y provided)
-        """
+
         if user_col is not None:
             # Group by user and create sequences
             unique_users = np.unique(user_col)
@@ -282,18 +254,7 @@ class DataPreprocessor:
             return X_sequences
     
     def apply_smote(self, X, y, random_state=42):
-        """
-        Apply SMOTE for handling class imbalance
-        
-        Args:
-            X: Feature matrix
-            y: Target variable
-            random_state: Random state for reproducibility
-        
-        Returns:
-            X_resampled: Resampled features
-            y_resampled: Resampled targets
-        """
+
         # Create pipeline with SMOTE and undersampling
         over = SMOTE(sampling_strategy=0.3, random_state=random_state)
         under = RandomUnderSampler(sampling_strategy=0.5, random_state=random_state)
@@ -306,7 +267,6 @@ class DataPreprocessor:
         return X_resampled, y_resampled
     
     def get_feature_names(self):
-        """Get names of selected features"""
         if not self.is_fitted:
             return None
         

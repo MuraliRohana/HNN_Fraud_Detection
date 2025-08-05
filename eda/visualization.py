@@ -13,21 +13,13 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class Visualizer:
-    """Visualization utilities for fraud detection system"""
+    # Visualization utilities for fraud detection system
     
     def __init__(self):
         self.color_palette = px.colors.qualitative.Set3
         
     def plot_data_distribution(self, data):
-        """
-        Plot comprehensive data distribution analysis
-        
-        Args:
-            data: Transaction dataframe
-        
-        Returns:
-            Dictionary of plotly figures
-        """
+
         figures = {}
         
         # 1. Fraud distribution pie chart
@@ -132,16 +124,7 @@ class Visualizer:
         return figures
     
     def plot_feature_correlations(self, data, target_col='Fraud_Label'):
-        """
-        Plot feature correlation heatmap
-        
-        Args:
-            data: DataFrame with features
-            target_col: Target column name
-        
-        Returns:
-            Plotly figure
-        """
+
         # Select numeric columns
         numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
         
@@ -165,17 +148,7 @@ class Visualizer:
         return fig
     
     def plot_feature_importance_with_target(self, data, target_col='Fraud_Label', top_n=15):
-        """
-        Plot correlation of features with target variable
-        
-        Args:
-            data: DataFrame
-            target_col: Target column
-            top_n: Number of top features to show
-        
-        Returns:
-            Plotly figure
-        """
+
         numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
         if target_col in numeric_cols:
             numeric_cols.remove(target_col)
@@ -196,16 +169,7 @@ class Visualizer:
         return fig
     
     def plot_graph_structure(self, graph_data, max_nodes=100):
-        """
-        Visualize graph structure
-        
-        Args:
-            graph_data: PyTorch Geometric Data object
-            max_nodes: Maximum number of nodes to visualize
-        
-        Returns:
-            Plotly figure
-        """
+
         # Convert to NetworkX
         edge_list = graph_data.edge_index.t().numpy()
         
@@ -317,17 +281,7 @@ class Visualizer:
         return fig
     
     def plot_embedding_visualization(self, embeddings, labels, method='tsne'):
-        """
-        Visualize high-dimensional embeddings in 2D
-        
-        Args:
-            embeddings: High-dimensional embeddings
-            labels: Labels for coloring
-            method: Dimensionality reduction method ('tsne' or 'pca')
-        
-        Returns:
-            Plotly figure
-        """
+
         if isinstance(embeddings, torch.Tensor):
             embeddings = embeddings.detach().cpu().numpy()
         
@@ -357,15 +311,7 @@ class Visualizer:
         return fig
     
     def plot_training_history(self, history):
-        """
-        Plot training history
-        
-        Args:
-            history: Dictionary containing training metrics
-        
-        Returns:
-            Dictionary of plotly figures
-        """
+
         figures = {}
         
         # Training loss
@@ -422,16 +368,7 @@ class Visualizer:
         return figures
     
     def plot_prediction_distribution(self, y_true, y_prob):
-        """
-        Plot distribution of prediction probabilities
-        
-        Args:
-            y_true: True labels
-            y_prob: Predicted probabilities
-        
-        Returns:
-            Plotly figure
-        """
+
         fig = go.Figure()
         
         # Legitimate transactions
@@ -472,15 +409,7 @@ class Visualizer:
         return fig
     
     def plot_risk_analysis(self, data):
-        """
-        Plot risk analysis charts
-        
-        Args:
-            data: Transaction data
-        
-        Returns:
-            Dictionary of plotly figures
-        """
+
         figures = {}
         
         # Risk score distribution by fraud label
@@ -543,16 +472,7 @@ class Visualizer:
         return figures
     
     def create_dashboard_summary(self, data, metrics=None):
-        """
-        Create summary statistics for dashboard
-        
-        Args:
-            data: Transaction data
-            metrics: Model performance metrics
-        
-        Returns:
-            Dictionary of summary statistics
-        """
+
         summary = {}
         
         # Dataset summary
@@ -588,16 +508,7 @@ class Visualizer:
         return summary
     
     def plot_confusion_matrix_detailed(self, cm, labels=['Legitimate', 'Fraudulent']):
-        """
-        Create detailed confusion matrix visualization
-        
-        Args:
-            cm: Confusion matrix
-            labels: Class labels
-        
-        Returns:
-            Plotly figure
-        """
+
         # Calculate percentages
         cm_percent = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis] * 100
         
