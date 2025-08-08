@@ -69,7 +69,7 @@ class GraphBuilder:
                     node_j = self.user_encoder[user_j]
                     
                     edges.append([node_i, node_j])
-                    edges.append([node_j, node_i])  # Undirected edge
+                    edges.append([node_j, node_i])  
         
         return edges
     
