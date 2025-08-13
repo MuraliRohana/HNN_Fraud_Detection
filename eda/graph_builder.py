@@ -4,7 +4,6 @@ import torch
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 import networkx as nx
-from collections import defaultdict
 import warnings
 warnings.filterwarnings('ignore')
 
